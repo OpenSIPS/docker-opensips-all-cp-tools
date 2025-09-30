@@ -5,6 +5,8 @@ services:
     volumes:
       - ./etc/mysql:/docker-entrypoint-initdb.d
       - mysql_data:/var/lib/mysql
+    ports:
+        - "3308:3306"
     env_file:
       - .env
     healthcheck:
@@ -18,13 +20,14 @@ services:
         ipv4_address: ${MYSQL_IP}
 
   opensips:
-    image: opensips/opensips:cp-all-tools
-    container_name: opensips
+    build: .
+    # image: opensips/opensips:3.3
+    container_name: opensips-3.3
     volumes:
       - ./etc/opensips:/etc/opensips
     ports:
-      - 5060:5060/udp
-      - 5060:5060/tcp
+      - "192.168.1.246:5062:5062/udp"  
+      - "192.168.1.246:5062:5062/tcp"
     expose:
       - 9060/tcp
     env_file:
@@ -39,9 +42,10 @@ services:
         ipv4_address: ${OPENSIPS_IP}
 
   control-panel:
-    build:
-      context: ./etc/opensips-cp/image
-      dockerfile_inline: FROM opensips/opensips-cp:latest
+    build: 
+       context: ./etc/opensips-cp/image
+      # dockerfile_inline: FROM opensips/opensips-cp:latest
+       dockerfile: Dockerfile.cp
     container_name: opensips-cp
     env_file:
       - .env
@@ -49,7 +53,7 @@ services:
       mysql:
         condition: service_healthy
     ports:
-      - 80:80
+      - 81:80
     expose:
       - 9060/tcp
     volumes:
@@ -57,24 +61,32 @@ services:
     networks:
       local_network:
         ipv4_address: ${CP_IP}
-
-  rtpproxy:
-    image: sippylabs/rtpproxy
-    container_name: rtpproxy
-    env_file:
-      - .env
-    ports:
-      - "${MINPORT}-${MAXPORT}:${MINPORT}-${MAXPORT}/udp"
-    networks:
-      local_network:
-        ipv4_address: ${RTPPROXY_IP}
-    command: -s udp:${RTPPROXY_IP}:${RTPPROXY_PORT} -l ${RTPPROXY_IP} -m ${MINPORT} -M ${MAXPORT} -A ${HOST_IP}
-
   rtpengine:
     image: drachtio/rtpengine
-    container_name: rtpengine
+    container_name: rtpengine-cp
     environment:
-      - LOCAL_IP=${RTPENGINE_IP}
+      # - LOCAL_IP=${RTPENGINE_IP}
+        - RTPENGINE_PUBLIC_IP=${HOST_IP}  # Your host/LAN IP
+    ports:
+    - "22222:22222/udp"             # UDP control port
+    - "23000-23100:23000-23100/udp" # RTP media ports
+    command: [
+    "rtpengine", 
+    "--foreground", 
+    "--log-stderr",
+    "--interface=172.72.0.6!192.168.1.246",
+    "--listen-udp=0.0.0.0:22222",
+    "--port-min=23000",
+    "--port-max=23100",
+    "--log-level=7",
+    "--delete-delay=0",
+    "--timeout=60",
+    "--silent-timeout=3600",
+    "--tos=184",
+    "--recording-dir=/tmp",
+    "--recording-method=pcap",
+    "--recording-format=eth"
+  ]
     ulimits:
       nproc: 1024
       nofile:
@@ -86,6 +98,7 @@ services:
 
 volumes:
   mysql_data:
+  opensips_fifo:
 
 networks:
   local_network:
