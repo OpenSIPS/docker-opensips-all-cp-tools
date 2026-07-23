@@ -17,6 +17,7 @@ TABLE_FILES=(
     carrierroute-create.sql
     closeddial-create.sql
     clusterer-create.sql
+    config-create.sql
     cpl-create.sql
     db-migrate.sql
     dialog-create.sql
@@ -41,6 +42,7 @@ TABLE_FILES=(
     rtpengine-create.sql
     rtpproxy-create.sql
     smpp-create.sql
+    sockets_mgm-create.sql
     speeddial-create.sql
     sqlops-create.sql
     table-migrate.sql
