@@ -1,12 +1,15 @@
 services:
   mysql:
-    image: mysql
+    build:
+      context: ./etc/mysql/image
     container_name: mysql
     volumes:
       - ./etc/mysql:/docker-entrypoint-initdb.d
       - mysql_data:/var/lib/mysql
     env_file:
       - .env
+    environment:
+      - MYSQL_IP=localhost      # ← init scripts connect via socket
     healthcheck:
       test: mysql -u ${MYSQL_USER} -p'${MYSQL_PASSWORD}' opensips -e 'SHOW TABLES LIKE "location"' 2>&1 | grep -q location
       interval: 10s
