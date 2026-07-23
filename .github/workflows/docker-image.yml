@@ -1,0 +1,88 @@
+---
+name: Build OpenSIPS CP All Tools Image
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'   # every Monday 06:00 UTC
+  push:
+    branches:
+      - main
+      - "3.6"
+    paths:
+      - .debian.packages
+
+jobs:
+
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      branches: ${{ steps.set.outputs.branches }}
+    steps:
+    - name: Select branches to build
+      id: set
+      run: |
+        # scheduled runs only fire on the default branch, so fan out to both
+        # images; push / manual runs build just the branch they target
+        if [ "${{ github.event_name }}" = "schedule" ]; then
+          echo 'branches=["main","3.6"]' >> "$GITHUB_OUTPUT"
+        else
+          echo "branches=[\"${GITHUB_REF_NAME}\"]" >> "$GITHUB_OUTPUT"
+        fi
+
+  publish:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJSON(needs.prepare.outputs.branches) }}
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        ref: ${{ matrix.branch }}
+
+    - name: Determine OpenSIPS version and Docker tags
+      id: vars
+      run: |
+        case "${{ matrix.branch }}" in
+          main)
+            echo "version=4.0"          >> "$GITHUB_OUTPUT"
+            echo "tag=cp-all-tools-4.0" >> "$GITHUB_OUTPUT"
+            echo "alias=cp-all-tools"   >> "$GITHUB_OUTPUT"
+            ;;
+          3.6)
+            echo "version=3.6"          >> "$GITHUB_OUTPUT"
+            echo "tag=cp-all-tools-3.6" >> "$GITHUB_OUTPUT"
+            echo "alias="               >> "$GITHUB_OUTPUT"
+            ;;
+          *)
+            echo "::error::Unsupported branch '${{ matrix.branch }}' - only 'main' (4.0) and '3.6' are built"
+            exit 1
+            ;;
+        esac
+
+    - name: Get the required packages
+      id: fetch_packages
+      run: echo "MODULES=$(cat .debian.packages | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+
+    - name: Publish OpenSIPS CP All Tools Docker image
+      uses: OpenSIPS/docker-opensips/.github/actions/docker-opensips-publish@main
+      with:
+        version: ${{ steps.vars.outputs.version }}
+        tag: ${{ steps.vars.outputs.tag }}
+        cli: true
+        build: nightly
+        modules: ${{ steps.fetch_packages.outputs.MODULES }}
+        docker-username: ${{ secrets.DOCKER_USERNAME }}
+        docker-token: ${{ secrets.DOCKER_TOKEN }}
+        ghcr-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Publish the floating 'cp-all-tools' alias tag (main only)
+      if: ${{ steps.vars.outputs.alias != '' && github.repository_owner == 'OpenSIPS' }}
+      run: |
+        for repo in "opensips" "ghcr.io/opensips"; do
+          docker tag  "opensips/opensips:${{ steps.vars.outputs.tag }}" "${repo}/opensips:${{ steps.vars.outputs.alias }}"
+          docker push "${repo}/opensips:${{ steps.vars.outputs.alias }}"
+        done
