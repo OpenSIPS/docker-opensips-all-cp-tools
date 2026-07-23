@@ -1,0 +1,10 @@
+m4
+gettext-base
+opensips-mysql-module
+opensips-auth-modules
+opensips-dialplan-module
+opensips-http-modules
+opensips-tls-module
+opensips-tlsmgm-module
+opensips-tls-openssl-module
+opensips-presence-modules
