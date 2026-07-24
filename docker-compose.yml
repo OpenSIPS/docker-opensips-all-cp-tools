@@ -21,7 +21,7 @@ services:
         ipv4_address: ${MYSQL_IP}
 
   opensips:
-    image: opensips/opensips:cp-all-tools-3.6
+    image: opensips/opensips-all-cp-tools:3.6
     container_name: opensips
     volumes:
       - ./etc/opensips:/etc/opensips

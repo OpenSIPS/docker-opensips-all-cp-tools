@@ -49,12 +49,12 @@ jobs:
         case "${{ matrix.branch }}" in
           main)
             echo "version=4.0"          >> "$GITHUB_OUTPUT"
-            echo "tag=cp-all-tools-4.0" >> "$GITHUB_OUTPUT"
-            echo "alias=cp-all-tools"   >> "$GITHUB_OUTPUT"
+            echo "tag=4.0" >> "$GITHUB_OUTPUT"
+            echo "alias=latest"   >> "$GITHUB_OUTPUT"
             ;;
           3.6)
             echo "version=3.6"          >> "$GITHUB_OUTPUT"
-            echo "tag=cp-all-tools-3.6" >> "$GITHUB_OUTPUT"
+            echo "tag=3.6" >> "$GITHUB_OUTPUT"
             echo "alias="               >> "$GITHUB_OUTPUT"
             ;;
           *)
@@ -74,15 +74,16 @@ jobs:
         tag: ${{ steps.vars.outputs.tag }}
         cli: true
         build: nightly
+        package: opensips-all-cp-tools
         modules: ${{ steps.fetch_packages.outputs.MODULES }}
         docker-username: ${{ secrets.DOCKER_USERNAME }}
         docker-token: ${{ secrets.DOCKER_TOKEN }}
         ghcr-token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Publish the floating 'cp-all-tools' alias tag (main only)
+    - name: Publish the floating 'latest' alias tag (main only)
       if: ${{ steps.vars.outputs.alias != '' && github.repository_owner == 'OpenSIPS' }}
       run: |
         for repo in "opensips" "ghcr.io/opensips"; do
-          docker tag  "opensips/opensips:${{ steps.vars.outputs.tag }}" "${repo}/opensips:${{ steps.vars.outputs.alias }}"
-          docker push "${repo}/opensips:${{ steps.vars.outputs.alias }}"
+          docker tag  "opensips/opensips-all-cp-tools:${{ steps.vars.outputs.tag }}" "${repo}/opensips-all-cp-tools:${{ steps.vars.outputs.alias }}"
+          docker push "${repo}/opensips-all-cp-tools:${{ steps.vars.outputs.alias }}"
         done
